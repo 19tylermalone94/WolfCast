@@ -16,7 +16,7 @@ test_years:
   end: 2023
 
 xgboost:
-  max_depth: 8
+  max_depth: 10
   eta: 0.1
   num_round: 300
   subsample: 0.8

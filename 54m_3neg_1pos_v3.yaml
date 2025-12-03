@@ -21,7 +21,7 @@ xgboost:
   num_round: 300
   subsample: 0.8
   colsample_bytree: 0.8
-  min_child_weight: 3
+  min_child_weight: 2
   eval_metric: "auc"
   num_workers: 4
   tree_method: "hist"
