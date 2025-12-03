@@ -1,0 +1,26 @@
+app_name: 54m_9neg_1pos_tuning_trial_007
+model_output_path: gs://wolfcast_training_samples/models/habitat_xgb_54m_9neg_1pos_tuning_trial_007
+samples_path: gs://wolfcast_training_samples/54m_9neg_1pos
+test_years:
+  end: 2023
+  start: 2019
+train_years:
+  end: 2016
+  start: 1995
+val_years:
+  end: 2019
+  start: 2016
+xgboost:
+  colsample_bytree: 0.6
+  eta: 0.01
+  eval_metric: auc
+  max_depth: 6
+  min_child_weight: 3
+  missing: 0.0
+  num_round: 300
+  num_workers: 7
+  reg_alpha: 0.0
+  reg_lambda: 5.0
+  seed: 42
+  subsample: 0.8
+  tree_method: hist
