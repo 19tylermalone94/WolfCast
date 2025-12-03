@@ -23,7 +23,7 @@ xgboost:
   colsample_bytree: 0.8
   min_child_weight: 2
   eval_metric: "auc"
-  num_workers: 4
+  num_workers: 7
   tree_method: "hist"
   missing: 0.0
   seed: 42
