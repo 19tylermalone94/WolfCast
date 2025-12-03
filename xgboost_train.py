@@ -1,5 +1,8 @@
 import argparse
 import sys
+import json
+import os
+from datetime import datetime
 
 import yaml
 from pyspark.sql import SparkSession
@@ -152,9 +155,82 @@ def main():
     val_auc = evaluator.evaluate(val_pred)
     print(f"Validation AUC: {val_auc:.4f}")
     
+    pr_evaluator = BinaryClassificationEvaluator(
+        labelCol="presence",
+        rawPredictionCol="rawPrediction",
+        metricName="areaUnderPR"
+    )
+    val_pr_auc = pr_evaluator.evaluate(val_pred)
+    print(f"Validation PR AUC: {val_pr_auc:.4f}")
+    
     test_pred = model.transform(test_df)
     test_auc = evaluator.evaluate(test_pred)
     print(f"Test AUC: {test_auc:.4f}")
+    test_pr_auc = pr_evaluator.evaluate(test_pred)
+    print(f"Test PR AUC: {test_pr_auc:.4f}")
+    
+    train_count = train_df.count()
+    val_count = val_df.count()
+    test_count = test_df.count()
+    
+    metrics = {
+        "config_path": args.config,
+        "app_name": APP_NAME,
+        "timestamp": datetime.now().isoformat(),
+        "model_output_path": MODEL_OUTPUT_PATH,
+        "samples_path": SAMPLES_PATH,
+        "dataset_info": {
+            "train_samples": train_count,
+            "val_samples": val_count,
+            "test_samples": test_count,
+            "train_years": TRAIN_YEARS,
+            "val_years": VAL_YEARS,
+            "test_years": TEST_YEARS,
+            "pos_count": pos_count,
+            "neg_count": neg_count,
+            "weight_ratio": float(weight_ratio)
+        },
+        "hyperparameters": XGBOOST_CONFIG,
+        "metrics": {
+            "val_auc": float(val_auc),
+            "val_pr_auc": float(val_pr_auc),
+            "test_auc": float(test_auc),
+            "test_pr_auc": float(test_pr_auc)
+        }
+    }
+    
+    if MODEL_OUTPUT_PATH.startswith("gs://"):
+        metrics_path = MODEL_OUTPUT_PATH.replace("/models/", "/metrics/") + "_metrics.json"
+        
+        try:
+            from google.cloud import storage
+            import tempfile
+            
+            bucket_name = metrics_path.split("/")[2]
+            blob_path = "/".join(metrics_path.split("/")[3:])
+            
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp_file:
+                json.dump(metrics, tmp_file, indent=2)
+                tmp_path = tmp_file.name
+            
+            client = storage.Client()
+            bucket = client.bucket(bucket_name)
+            blob = bucket.blob(blob_path)
+            blob.upload_from_filename(tmp_path)
+            os.unlink(tmp_path)
+            print(f"Metrics saved to: {metrics_path}")
+        except Exception as e:
+            print(f"Warning: Failed to save metrics to GCS: {e}")
+            local_path = f"{APP_NAME}_metrics.json"
+            with open(local_path, 'w') as f:
+                json.dump(metrics, f, indent=2)
+            print(f"Metrics saved locally to: {local_path}")
+    else:
+        metrics_path = os.path.join(MODEL_OUTPUT_PATH, f"{APP_NAME}_metrics.json")
+        os.makedirs(os.path.dirname(metrics_path) if os.path.dirname(metrics_path) else '.', exist_ok=True)
+        with open(metrics_path, 'w') as f:
+            json.dump(metrics, f, indent=2)
+        print(f"Metrics saved to: {metrics_path}")
     
     model.write().overwrite().save(MODEL_OUTPUT_PATH)
     print(f"Model saved to: {MODEL_OUTPUT_PATH}")
