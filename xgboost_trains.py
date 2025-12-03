@@ -12,7 +12,27 @@ from xgboost.spark import SparkXGBClassifier
 
 
 def load_config(config_path):
-    """Load configuration from YAML file."""
+    """Load configuration from YAML file (supports local and GCS paths)."""
+    import tempfile
+    
+    if config_path.startswith("gs://"):
+        try:
+            from google.cloud import storage
+            bucket_name = config_path.split("/")[2]
+            blob_path = "/".join(config_path.split("/")[3:])
+            
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as tmp_file:
+                tmp_path = tmp_file.name
+            
+            client = storage.Client()
+            bucket = client.bucket(bucket_name)
+            blob = bucket.blob(blob_path)
+            blob.download_to_filename(tmp_path)
+            config_path = tmp_path
+        except Exception as e:
+            print(f"Error: Failed to download config from GCS: {e}")
+            sys.exit(1)
+    
     try:
         with open(config_path, 'r') as f:
             config = yaml.safe_load(f)

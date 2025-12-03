@@ -1,7 +1,7 @@
 app_name: "54m_1neg_1pos_v2"
 
 samples_path: "gs://wolfcast_training_samples/54m_1neg_1pos"
-model_output_path: "gs://wolfcast_training_samples/models/54m_1neg_1pos_v2"
+model_output_path: "gs://wolfcast_training_samples/models/habitat_xgb_54m_1neg_1pos_v2"
 
 train_years:
   start: 1995

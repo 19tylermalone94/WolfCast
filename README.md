@@ -28,3 +28,12 @@ python GEE_test.py
 ```
 
 6. Check the EarthEngine folder in your Google Drive
+
+## Running a Job
+```
+gcloud dataproc jobs submit pyspark \
+  gs://wolfcast_training_samples/xgboost_trains.py \
+  --cluster=cluster-wolf \
+  --region=us-east1 \
+  -- --config=gs://wolfcast_training_samples/configs/81m_1neg_1pos_v2.yaml
+```
