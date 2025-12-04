@@ -42,10 +42,10 @@ for CONFIG in $CONFIG_FILES; do
         > /dev/null 2>&1
     
     if [ $? -eq 0 ]; then
-        echo "  ✓ Successfully submitted"
+        echo "  [Success] Successfully submitted"
         SUCCESS=$((SUCCESS + 1))
     else
-        echo "  ✗ Failed to submit"
+        echo "  [Failed] Failed to submit"
         FAILED=$((FAILED + 1))
     fi
     

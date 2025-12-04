@@ -24,12 +24,10 @@ def parse_years(year_list):
     elif isinstance(year_list, str) and '-' in year_list:
         start, end = map(int, year_list.split('-'))
         return list(range(start, end))
-    else:
-        raise ValueError(f"Invalid year format: {year_list}")
+    raise ValueError(f"Invalid year format: {year_list}")
 
 
 def extract_predictions_to_pandas(spark, predictions_df, sample_fraction=1.0, max_samples=None):
-    """Extract true labels and predicted probabilities from Spark DataFrame."""
     extract_prob = udf(lambda v: float(v[1]), FloatType())
     
     results_df = predictions_df.select(
@@ -37,7 +35,6 @@ def extract_predictions_to_pandas(spark, predictions_df, sample_fraction=1.0, ma
         extract_prob("probability").alias("predicted_prob")
     )
     
-    # Sample if dataset is too large
     total_count = results_df.count()
     if max_samples and total_count > max_samples:
         sample_fraction = max_samples / total_count
@@ -47,9 +44,7 @@ def extract_predictions_to_pandas(spark, predictions_df, sample_fraction=1.0, ma
         print(f"Sampling {sample_fraction:.4f} fraction from {total_count} total")
         results_df = results_df.sample(fraction=sample_fraction, seed=42)
     
-    # Convert to pandas (now with manageable size)
     pdf = results_df.toPandas()
-    
     y_true = pdf['true_label'].values
     y_prob = pdf['predicted_prob'].values
     
@@ -57,15 +52,12 @@ def extract_predictions_to_pandas(spark, predictions_df, sample_fraction=1.0, ma
 
 
 def save_plot_to_gcs(plot_func, gcs_path, *plot_args, **plot_kwargs):
-    """Save a plot to GCS by creating it locally then uploading."""
     with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
         tmp_path = tmp_file.name
     
     try:
-        # Call plot function with temp path
         plot_func(*plot_args, output_path=tmp_path, **plot_kwargs)
         
-        # Upload to GCS
         from google.cloud import storage
         bucket_name = gcs_path.split("/")[2]
         blob_path = "/".join(gcs_path.split("/")[3:])
@@ -83,13 +75,11 @@ def save_plot_to_gcs(plot_func, gcs_path, *plot_args, **plot_kwargs):
 
 
 def plot_roc_curve(y_true, y_prob, output_path, auc_score):
-    """Plot ROC curve."""
     fpr, tpr, thresholds = roc_curve(y_true, y_prob)
     roc_auc = auc(fpr, tpr)
     
     plt.figure(figsize=(8, 6))
-    plt.plot(fpr, tpr, color='darkorange', lw=2, 
-             label=f'ROC curve (AUC = {roc_auc:.4f})')
+    plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC curve (AUC = {roc_auc:.4f})')
     plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--', label='Random')
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.05])
@@ -105,17 +95,13 @@ def plot_roc_curve(y_true, y_prob, output_path, auc_score):
 
 
 def plot_pr_curve(y_true, y_prob, output_path, pr_auc_score):
-    """Plot Precision-Recall curve."""
     precision, recall, thresholds = precision_recall_curve(y_true, y_prob)
     pr_auc = auc(recall, precision)
-    
     baseline = np.sum(y_true) / len(y_true)
     
     plt.figure(figsize=(8, 6))
-    plt.plot(recall, precision, color='darkblue', lw=2,
-             label=f'PR curve (AUC = {pr_auc:.4f})')
-    plt.axhline(y=baseline, color='navy', linestyle='--', 
-               label=f'Baseline (random) = {baseline:.4f}')
+    plt.plot(recall, precision, color='darkblue', lw=2, label=f'PR curve (AUC = {pr_auc:.4f})')
+    plt.axhline(y=baseline, color='navy', linestyle='--', label=f'Baseline (random) = {baseline:.4f}')
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.05])
     plt.xlabel('Recall', fontsize=12)
@@ -130,7 +116,6 @@ def plot_pr_curve(y_true, y_prob, output_path, pr_auc_score):
 
 
 def plot_confusion_matrix_at_threshold(y_true, y_prob, threshold, output_path):
-    """Plot confusion matrix at a specific threshold."""
     y_pred = (y_prob >= threshold).astype(int)
     cm = confusion_matrix(y_true, y_pred)
     
@@ -140,8 +125,7 @@ def plot_confusion_matrix_at_threshold(y_true, y_prob, threshold, output_path):
                 yticklabels=['Negative', 'Positive'])
     plt.ylabel('True Label', fontsize=12)
     plt.xlabel('Predicted Label', fontsize=12)
-    plt.title(f'Confusion Matrix (Threshold = {threshold:.2f})', 
-              fontsize=14, fontweight='bold')
+    plt.title(f'Confusion Matrix (Threshold = {threshold:.2f})', fontsize=14, fontweight='bold')
     
     tn, fp, fn, tp = cm.ravel()
     accuracy = (tp + tn) / (tp + tn + fp + fn)
@@ -160,7 +144,6 @@ def plot_confusion_matrix_at_threshold(y_true, y_prob, threshold, output_path):
 
 
 def plot_prediction_distribution(y_true, y_prob, output_path):
-    """Plot distribution of predicted probabilities by true class."""
     plt.figure(figsize=(10, 6))
     
     pos_probs = y_prob[y_true == 1]
@@ -180,9 +163,7 @@ def plot_prediction_distribution(y_true, y_prob, output_path):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description='Generate evaluation curves for a trained model'
-    )
+    parser = argparse.ArgumentParser()
     parser.add_argument(
         '--model_path',
         type=str,
@@ -253,7 +234,7 @@ def main():
     print(f"Loading model from: {args.model_path}")
     try:
         model = PipelineModel.load(args.model_path)
-        print("✓ Model loaded successfully")
+        print("Model loaded successfully")
     except Exception as e:
         print(f"Error loading model: {e}")
         sys.exit(1)
@@ -286,7 +267,6 @@ def main():
     print("\nMaking predictions...")
     predictions = model.transform(eval_df)
     
-    # Calculate metrics on full dataset using Spark evaluators
     print("\nCalculating metrics on full dataset...")
     from pyspark.ml.evaluation import BinaryClassificationEvaluator
     
@@ -308,30 +288,25 @@ def main():
     print(f"  ROC AUC: {roc_auc:.4f}")
     print(f"  PR AUC:  {pr_auc:.4f}")
     
-    # Sample for plotting (to avoid memory issues)
     print(f"\nSampling for plotting (max {args.max_samples} samples)...")
     y_true, y_prob = extract_predictions_to_pandas(spark, predictions, max_samples=args.max_samples)
     
-    # Save predictions if requested (save sampled version for plotting, or full if needed)
     if args.save_predictions:
         print(f"\nSaving predictions to: {args.save_predictions}")
         import pandas as pd
         pred_df = pd.DataFrame({'true_label': y_true, 'predicted_prob': y_prob})
         
         if args.save_predictions.startswith("gs://"):
-            # Save to GCS via Spark
             pred_spark_df = spark.createDataFrame(pred_df)
             pred_spark_df.write.mode("overwrite").parquet(args.save_predictions)
-            print(f"✓ Predictions saved to: {args.save_predictions}")
+            print(f"Predictions saved to: {args.save_predictions}")
         else:
             pred_df.to_parquet(args.save_predictions)
-            print(f"✓ Predictions saved to: {args.save_predictions}")
+            print(f"Predictions saved to: {args.save_predictions}")
     
     print(f"\nGenerating plots...")
     
-    # Generate plots
     if is_gcs_output:
-        # Save to GCS
         save_plot_to_gcs(plot_roc_curve, 
                         f"{args.output_dir}/roc_curve.png",
                         y_true, y_prob, auc_score=roc_auc)
@@ -348,7 +323,6 @@ def main():
                         f"{args.output_dir}/probability_distribution.png",
                         y_true, y_prob)
     else:
-        # Save locally
         plot_roc_curve(y_true, y_prob, 
                       os.path.join(args.output_dir, 'roc_curve.png'), 
                       roc_auc)
@@ -363,7 +337,7 @@ def main():
         plot_prediction_distribution(y_true, y_prob,
                                     os.path.join(args.output_dir, 'probability_distribution.png'))
     
-    print(f"\n✓ All plots saved to: {args.output_dir}")
+    print(f"\nAll plots saved to: {args.output_dir}")
     
     spark.stop()
 
