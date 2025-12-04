@@ -234,7 +234,7 @@ def main():
     print(f"Loading model from: {args.model_path}")
     try:
         model = PipelineModel.load(args.model_path)
-        print("✓ Model loaded successfully")
+        print("Model loaded successfully")
     except Exception as e:
         print(f"Error loading model: {e}")
         sys.exit(1)
@@ -299,10 +299,10 @@ def main():
         if args.save_predictions.startswith("gs://"):
             pred_spark_df = spark.createDataFrame(pred_df)
             pred_spark_df.write.mode("overwrite").parquet(args.save_predictions)
-            print(f"✓ Predictions saved to: {args.save_predictions}")
+            print(f"Predictions saved to: {args.save_predictions}")
         else:
             pred_df.to_parquet(args.save_predictions)
-            print(f"✓ Predictions saved to: {args.save_predictions}")
+            print(f"Predictions saved to: {args.save_predictions}")
     
     print(f"\nGenerating plots...")
     
