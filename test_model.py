@@ -73,7 +73,7 @@ def main():
     print(f"Loading model from: {args.model_path}")
     try:
         model = PipelineModel.load(args.model_path)
-        print("✓ Model loaded successfully")
+        print("Model loaded successfully")
     except Exception as e:
         print(f"Error loading model: {e}")
         sys.exit(1)
